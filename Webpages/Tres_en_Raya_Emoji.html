@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Tres en Raya con Emojis</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding-top: 30px;
+            background-color: #f5f5f5;
+        }
+        #board {
+            display: inline-grid;
+            grid-template-columns: repeat(3, 80px);
+            grid-template-rows: repeat(3, 80px);
+            gap: 5px;
+            margin: 20px auto;
+        }
+        .cell {
+            width: 80px;
+            height: 80px;
+            font-size: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            transition: all 0.2s;
+        }
+        .cell:hover {
+            background-color: #f0f0f0;
+        }
+        #status {
+            font-size: 24px;
+            margin: 20px;
+            min-height: 36px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <h1>⭕ Tres en Raya ❌</h1>
+    <div id="status">Es tu turno (❌)</div>
+    <div id="board"></div>
+    <button id="reset">Reiniciar Juego</button>
+
+    <script>
+        const boardElement = document.getElementById('board');
+        const statusElement = document.getElementById('status');
+        const resetButton = document.getElementById('reset');
+        
+        let board = Array(9).fill(null);
+        let currentPlayer = '❌';
+        let gameActive = true;
+        
+        // Crear el tablero
+        function createBoard() {
+            boardElement.innerHTML = '';
+            for (let i = 0; i < 9; i++) {
+                const cell = document.createElement('div');
+                cell.classList.add('cell');
+                cell.setAttribute('data-index', i);
+                cell.addEventListener('click', handleCellClick);
+                boardElement.appendChild(cell);
+            }
+        }
+        
+        // Manejar clic en celda
+        function handleCellClick(e) {
+            const index = e.target.getAttribute('data-index');
+            
+            if (board[index] !== null || !gameActive) return;
+            
+            board[index] = currentPlayer;
+            e.target.textContent = currentPlayer;
+            
+            if (checkWinner()) {
+                statusElement.textContent = `¡${currentPlayer} gana! 🎉`;
+                gameActive = false;
+                return;
+            }
+            
+            if (board.every(cell => cell !== null)) {
+                statusElement.textContent = '¡Empate! 🤝';
+                gameActive = false;
+                return;
+            }
+            
+            currentPlayer = currentPlayer === '❌' ? '⭕' : '❌';
+            statusElement.textContent = `Es tu turno (${currentPlayer})`;
+        }
+        
+        // Verificar ganador
+        function checkWinner() {
+            const winPatterns = [
+                [0, 1, 2], [3, 4, 5], [6, 7, 8], // filas
+                [0, 3, 6], [1, 4, 7], [2, 5, 8], // columnas
+                [0, 4, 8], [2, 4, 6]             // diagonales
+            ];
+            
+            return winPatterns.some(pattern => {
+                const [a, b, c] = pattern;
+                return board[a] !== null && board[a] === board[b] && board[a] === board[c];
+            });
+        }
+        
+        // Reiniciar juego
+        function resetGame() {
+            board = Array(9).fill(null);
+            currentPlayer = '❌';
+            gameActive = true;
+            statusElement.textContent = `Es tu turno (${currentPlayer})`;
+            createBoard();
+        }
+        
+        // Event listeners
+        resetButton.addEventListener('click', resetGame);
+        
+        // Inicializar
+        createBoard();
+    </script>
+</body>
+</html>
