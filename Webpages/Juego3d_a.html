@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Juego 3D con Three.js</title>
+    <style>
+        body { margin: 0; overflow: hidden; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+    <script>
+        // 1. Configuración inicial
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x111111);
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // 2. Crear un jugador (esfera)
+        const playerGeometry = new THREE.SphereGeometry(0.5, 32, 32);
+        const playerMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+        const player = new THREE.Mesh(playerGeometry, playerMaterial);
+        player.position.y = 0.5;
+        scene.add(player);
+
+        // 3. Crear obstáculos (cubos que caen)
+        const obstacles = [];
+        function createObstacle() {
+            const geometry = new THREE.BoxGeometry(0.8, 0.8, 0.8);
+            const material = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+            const obstacle = new THREE.Mesh(geometry, material);
+            obstacle.position.x = (Math.random() - 0.5) * 10;
+            obstacle.position.z = -20;
+            obstacle.position.y = 0.5;
+            scene.add(obstacle);
+            obstacles.push(obstacle);
+        }
+
+        // 4. Movimiento del jugador (ratón o touch)
+        document.addEventListener('mousemove', (e) => {
+            player.position.x = (e.clientX / window.innerWidth) * 10 - 5;
+        });
+
+        // 5. Configurar cámara y física simple
+        camera.position.z = 5;
+        let score = 0;
+
+        // 6. Bucle del juego
+        function gameLoop() {
+            requestAnimationFrame(gameLoop);
+
+            // Mover obstáculos hacia el jugador
+            obstacles.forEach((obstacle, index) => {
+                obstacle.position.z += 0.2;
+
+                // Detectar colisión
+                const distance = player.position.distanceTo(obstacle.position);
+                if (distance < 1) {
+                    alert(`¡Game Over! Puntuación: ${score}`);
+                    location.reload();
+                }
+
+                // Eliminar obstáculos que pasaron
+                if (obstacle.position.z > 5) {
+                    scene.remove(obstacle);
+                    obstacles.splice(index, 1);
+                    score++;
+                }
+            });
+
+            // Generar nuevos obstáculos
+            if (Math.random() < 0.02) {
+                createObstacle();
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        // 7. Iniciar juego
+        gameLoop();
+    </script>
+</body>
+</html>
