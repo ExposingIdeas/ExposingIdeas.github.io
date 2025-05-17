@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Memoria con Emojis</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #f9f9f9;
+            padding-top: 20px;
+        }
+        #game {
+            display: grid;
+            grid-template-columns: repeat(4, 80px);
+            grid-template-rows: repeat(4, 80px);
+            gap: 10px;
+            margin: 20px auto;
+            width: fit-content;
+        }
+        .card {
+            width: 80px;
+            height: 80px;
+            font-size: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #6200ea;
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .card.flipped {
+            background-color: white;
+            color: black;
+            transform: rotateY(180deg);
+        }
+        .card.matched {
+            visibility: hidden;
+        }
+        #stats {
+            margin: 20px;
+            font-size: 18px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #6200ea;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧠 Memoria con Emojis 🧠</h1>
+    <div id="stats">Intentos: <span id="attempts">0</span> | Pares: <span id="pairs">0</span>/8</div>
+    <div id="game"></div>
+    <button id="reset">Nuevo Juego</button>
+
+    <script>
+        const gameElement = document.getElementById('game');
+        const attemptsElement = document.getElementById('attempts');
+        const pairsElement = document.getElementById('pairs');
+        const resetButton = document.getElementById('reset');
+        
+        const emojiPairs = ['🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼'];
+        let cards = [...emojiPairs, ...emojiPairs];
+        let flippedCards = [];
+        let matchedPairs = 0;
+        let attempts = 0;
+        let canFlip = true;
+        
+        // Barajar cartas (algoritmo Fisher-Yates)
+        function shuffleCards() {
+            for (let i = cards.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [cards[i], cards[j]] = [cards[j], cards[i]];
+            }
+        }
+        
+        // Crear el tablero
+        function createBoard() {
+            gameElement.innerHTML = '';
+            shuffleCards();
+            
+            cards.forEach((emoji, index) => {
+                const card = document.createElement('div');
+                card.classList.add('card');
+                card.setAttribute('data-index', index);
+                card.textContent = '❓';
+                card.addEventListener('click', flipCard);
+                gameElement.appendChild(card);
+            });
+        }
+        
+        // Voltear carta
+        function flipCard(e) {
+            if (!canFlip) return;
+            
+            const card = e.target;
+            const index = card.getAttribute('data-index');
+            
+            // No voltear si ya está volteada o emparejada
+            if (card.classList.contains('flipped') || card.classList.contains('matched')) return;
+            
+            // Voltear la carta
+            card.textContent = cards[index];
+            card.classList.add('flipped');
+            flippedCards.push(card);
+            
+            // Verificar si hay dos cartas volteadas
+            if (flippedCards.length === 2) {
+                canFlip = false;
+                attempts++;
+                attemptsElement.textContent = attempts;
+                
+                const [card1, card2] = flippedCards;
+                const index1 = card1.getAttribute('data-index');
+                const index2 = card2.getAttribute('data-index');
+                
+                if (cards[index1] === cards[index2]) {
+                    // Emparejadas
+                    card1.classList.add('matched');
+                    card2.classList.add('matched');
+                    flippedCards = [];
+                    canFlip = true;
+                    matchedPairs++;
+                    pairsElement.textContent = matchedPairs;
+                    
+                    // Verificar si el juego terminó
+                    if (matchedPairs === emojiPairs.length) {
+                        setTimeout(() => {
+                            alert(`¡Ganaste! 🎉\nIntentos: ${attempts}`);
+                        }, 500);
+                    }
+                } else {
+                    // No emparejadas - voltear de nuevo después de un breve retraso
+                    setTimeout(() => {
+                        card1.textContent = '❓';
+                        card2.textContent = '❓';
+                        card1.classList.remove('flipped');
+                        card2.classList.remove('flipped');
+                        flippedCards = [];
+                        canFlip = true;
+                    }, 1000);
+                }
+            }
+        }
+        
+        // Reiniciar juego
+        function resetGame() {
+            flippedCards = [];
+            matchedPairs = 0;
+            attempts = 0;
+            canFlip = true;
+            attemptsElement.textContent = attempts;
+            pairsElement.textContent = matchedPairs;
+            createBoard();
+        }
+        
+        // Event listeners
+        resetButton.addEventListener('click', resetGame);
+        
+        // Inicializar
+        resetGame();
+    </script>
+</body>
+</html>
