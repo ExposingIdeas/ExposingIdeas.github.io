@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Billar 3D con Three.js y Cannon.js</title>
+    <style>
+        body { margin: 0; overflow: hidden; }
+        canvas { display: block; }
+        #menu {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.5);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        button {
+            margin: 5px;
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div id="menu">
+        <button onclick="changeCamera('frontal')">Vista Frontal</button>
+        <button onclick="changeCamera('lateral')">Vista Lateral</button>
+        <button onclick="changeCamera('superior')">Vista Superior</button>
+        <button onclick="changeCamera('isometrica')">Vista Isométrica</button>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cannon.js/0.6.2/cannon.min.js"></script>
+    <script>
+        // Escena Three.js
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x333333);
+
+        // Cámara
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 10, 20);
+
+        // Renderer
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        document.body.appendChild(renderer.domElement);
+
+        // Luz
+        const light = new THREE.DirectionalLight(0xffffff, 1);
+        light.position.set(5, 10, 7);
+        light.castShadow = true;
+        scene.add(light);
+        scene.add(new THREE.AmbientLight(0x404040));
+
+        // Mundo físico (Cannon.js)
+        const world = new CANNON.World();
+        world.gravity.set(0, -9.82, 0);
+        world.broadphase = new CANNON.NaiveBroadphase();
+        world.solver.iterations = 10;
+
+        // Mesa de billar
+        const mesaWidth = 10;
+        const mesaHeight = 0.5;
+        const mesaDepth = 20;
+
+        const mesaGeometry = new THREE.BoxGeometry(mesaWidth, mesaHeight, mesaDepth);
+        const mesaMaterial = new THREE.MeshPhongMaterial({ color: 0x006400 });
+        const mesa = new THREE.Mesh(mesaGeometry, mesaMaterial);
+        mesa.position.y = -0.25;
+        mesa.receiveShadow = true;
+        scene.add(mesa);
+
+        // Bordes de la mesa (físicos)
+        const borderShape = new CANNON.Box(new CANNON.Vec3(mesaWidth / 2, 0.5, mesaDepth / 2));
+        const borderBody = new CANNON.Body({ mass: 0, shape: borderShape });
+        world.addBody(borderBody);
+
+        // Bolas de billar
+        const balls = [];
+        const ballRadius = 0.5;
+        const ballGeometry = new THREE.SphereGeometry(ballRadius, 32, 32);
+        const ballMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff });
+
+        // Crear bolas en formación triangular
+        const startPos = { x: 0, z: -5 };
+        let row = 0;
+        let count = 0;
+        for (let i = 0; i < 5; i++) {
+            for (let j = 0; j <= i; j++) {
+                const ball = new THREE.Mesh(ballGeometry, ballMaterial.clone());
+                ball.material.color.setHex(Math.random() * 0xffffff);
+                ball.position.set(
+                    startPos.x + (j - i / 2) * ballRadius * 2,
+                    ballRadius,
+                    startPos.z - i * ballRadius * Math.sqrt(3)
+                );
+                ball.castShadow = true;
+                scene.add(ball);
+
+                // Cuerpo físico de la bola
+                const ballShape = new CANNON.Sphere(ballRadius);
+                const ballBody = new CANNON.Body({ mass: 0.5, shape: ballShape });
+                ballBody.position.copy(ball.position);
+                world.addBody(ballBody);
+
+                balls.push({ mesh: ball, body: ballBody });
+                count++;
+            }
+        }
+
+        // Bola blanca (jugador)
+        const whiteBall = new THREE.Mesh(ballGeometry, new THREE.MeshPhongMaterial({ color: 0xffffff }));
+        whiteBall.position.set(0, ballRadius, 5);
+        whiteBall.castShadow = true;
+        scene.add(whiteBall);
+
+        const whiteBallBody = new CANNON.Body({ mass: 2, shape: new CANNON.Sphere(ballRadius) });
+        whiteBallBody.position.copy(whiteBall.position);
+        world.addBody(whiteBallBody);
+
+        // Función para cambiar la cámara
+        function changeCamera(view) {
+            switch (view) {
+                case 'frontal':
+                    camera.position.set(0, 5, 20);
+                    camera.lookAt(0, 0, 0);
+                    break;
+                case 'lateral':
+                    camera.position.set(15, 5, 0);
+                    camera.lookAt(0, 0, 0);
+                    break;
+                case 'superior':
+                    camera.position.set(0, 20, 0);
+                    camera.lookAt(0, 0, 0);
+                    break;
+                case 'isometrica':
+                    camera.position.set(15, 15, 15);
+                    camera.lookAt(0, 0, 0);
+                    break;
+            }
+        }
+
+        // Evento para golpear la bola blanca
+        window.addEventListener('click', () => {
+            whiteBallBody.velocity.set(0, 0, -10);
+        });
+
+        // Animación
+        function animate() {
+            requestAnimationFrame(animate);
+            world.step(1/60);
+
+            // Actualizar posición de las bolas
+            balls.forEach(ball => {
+                ball.mesh.position.copy(ball.body.position);
+                ball.mesh.quaternion.copy(ball.body.quaternion);
+            });
+
+            // Actualizar bola blanca
+            whiteBall.position.copy(whiteBallBody.position);
+            whiteBall.quaternion.copy(whiteBallBody.quaternion);
+
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // Ajustar tamaño al cambiar ventana
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
