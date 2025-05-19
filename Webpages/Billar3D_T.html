@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Billar 3D Simple con Three.js</title>
+    <style>
+        body { margin: 0; overflow: hidden; }
+        canvas { display: block; }
+        #menu {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: Arial, sans-serif;
+        }
+        button {
+            margin: 5px;
+            padding: 8px 12px;
+            cursor: pointer;
+            background: #444;
+            color: white;
+            border: none;
+            border-radius: 3px;
+        }
+        button:hover { background: #666; }
+    </style>
+</head>
+<body>
+    <div id="menu">
+        <h3>Vistas:</h3>
+        <button onclick="changeCamera('frontal')">Frontal</button>
+        <button onclick="changeCamera('lateral')">Lateral</button>
+        <button onclick="changeCamera('superior')">Superior</button>
+        <button onclick="changeCamera('isometrica')">Isométrica</button>
+        <p>Haz clic para golpear la bola blanca</p>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // Escena
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x222222);
+
+        // Cámara
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 15, 25);
+        camera.lookAt(0, 0, 0);
+
+        // Renderer
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        document.body.appendChild(renderer.domElement);
+
+        // Luz
+        const light = new THREE.DirectionalLight(0xffffff, 1);
+        light.position.set(5, 10, 7);
+        light.castShadow = true;
+        scene.add(light);
+        scene.add(new THREE.AmbientLight(0x404040));
+
+        // Mesa de billar
+        const mesaWidth = 15;
+        const mesaHeight = 0.5;
+        const mesaDepth = 30;
+
+        const mesaGeometry = new THREE.BoxGeometry(mesaWidth, mesaHeight, mesaDepth);
+        const mesaMaterial = new THREE.MeshPhongMaterial({ color: 0x006400 });
+        const mesa = new THREE.Mesh(mesaGeometry, mesaMaterial);
+        mesa.position.y = -0.25;
+        mesa.receiveShadow = true;
+        scene.add(mesa);
+
+        // Bordes de la mesa (visuales)
+        const borderMaterial = new THREE.MeshPhongMaterial({ color: 0x8B4513 });
+        const borderThickness = 0.5;
+        const borderHeight = 1;
+
+        // Bordes laterales
+        const leftBorder = new THREE.Mesh(
+            new THREE.BoxGeometry(borderThickness, borderHeight, mesaDepth + borderThickness * 2),
+            borderMaterial
+        );
+        leftBorder.position.set(-mesaWidth / 2 - borderThickness / 2, borderHeight / 2, 0);
+        scene.add(leftBorder);
+
+        const rightBorder = new THREE.Mesh(
+            new THREE.BoxGeometry(borderThickness, borderHeight, mesaDepth + borderThickness * 2),
+            borderMaterial
+        );
+        rightBorder.position.set(mesaWidth / 2 + borderThickness / 2, borderHeight / 2, 0);
+        scene.add(rightBorder);
+
+        // Bordes frontales
+        const frontBorder = new THREE.Mesh(
+            new THREE.BoxGeometry(mesaWidth + borderThickness * 2, borderHeight, borderThickness),
+            borderMaterial
+        );
+        frontBorder.position.set(0, borderHeight / 2, mesaDepth / 2 + borderThickness / 2);
+        scene.add(frontBorder);
+
+        const backBorder = new THREE.Mesh(
+            new THREE.BoxGeometry(mesaWidth + borderThickness * 2, borderHeight, borderThickness),
+            borderMaterial
+        );
+        backBorder.position.set(0, borderHeight / 2, -mesaDepth / 2 - borderThickness / 2);
+        scene.add(backBorder);
+
+        // Bolas de billar
+        const balls = [];
+        const ballRadius = 0.5;
+        const ballGeometry = new THREE.SphereGeometry(ballRadius, 32, 32);
+
+        // Crear bolas en formación triangular
+        const startX = 0;
+        const startZ = -10;
+        const rows = 5;
+
+        for (let row = 0; row < rows; row++) {
+            for (let i = 0; i <= row; i++) {
+                const ballColor = new THREE.Color(Math.random() * 0xffffff);
+                const ballMaterial = new THREE.MeshPhongMaterial({ color: ballColor });
+                const ball = new THREE.Mesh(ballGeometry, ballMaterial);
+                
+                ball.position.x = startX + (i - row / 2) * ballRadius * 2.1;
+                ball.position.y = ballRadius;
+                ball.position.z = startZ - row * ballRadius * 1.8;
+                
+                ball.castShadow = true;
+                scene.add(ball);
+
+                // Añadir velocidad para simular movimiento
+                ball.velocity = new THREE.Vector3(0, 0, 0);
+                balls.push(ball);
+            }
+        }
+
+        // Bola blanca (jugador)
+        const whiteBallMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff });
+        const whiteBall = new THREE.Mesh(ballGeometry, whiteBallMaterial);
+        whiteBall.position.set(0, ballRadius, 10);
+        whiteBall.castShadow = true;
+        whiteBall.velocity = new THREE.Vector3(0, 0, 0);
+        scene.add(whiteBall);
+        balls.push(whiteBall);
+
+        // Función para detectar colisiones entre bolas
+        function checkBallCollision(ball1, ball2) {
+            const distance = ball1.position.distanceTo(ball2.position);
+            if (distance < ballRadius * 2) {
+                // Vector de colisión (normalizado)
+                const collisionNormal = new THREE.Vector3()
+                    .subVectors(ball2.position, ball1.position)
+                    .normalize();
+
+                // Ajustar posiciones para evitar superposición
+                const overlap = (ballRadius * 2) - distance;
+                const correction = collisionNormal.clone().multiplyScalar(overlap * 0.5);
+                ball1.position.sub(correction);
+                ball2.position.add(correction);
+
+                // Rebote simplificado (intercambio de velocidades)
+                const velocity1 = ball1.velocity.dot(collisionNormal);
+                const velocity2 = ball2.velocity.dot(collisionNormal);
+
+                ball1.velocity.add(
+                    new THREE.Vector3()
+                        .copy(collisionNormal)
+                        .multiplyScalar(velocity2 - velocity1)
+                );
+                ball2.velocity.add(
+                    new THREE.Vector3()
+                        .copy(collisionNormal)
+                        .multiplyScalar(velocity1 - velocity2)
+                );
+            }
+        }
+
+        // Función para detectar colisiones con los bordes
+        function checkBorderCollision(ball) {
+            const halfWidth = mesaWidth / 2;
+            const halfDepth = mesaDepth / 2;
+
+            // Rebote en los lados (X)
+            if (ball.position.x > halfWidth || ball.position.x < -halfWidth) {
+                ball.velocity.x *= -0.9; // Rebote con pérdida de energía
+                ball.position.x = Math.min(Math.max(ball.position.x, -halfWidth), halfWidth);
+            }
+
+            // Rebote en los extremos (Z)
+            if (ball.position.z > halfDepth || ball.position.z < -halfDepth) {
+                ball.velocity.z *= -0.9;
+                ball.position.z = Math.min(Math.max(ball.position.z, -halfDepth), halfDepth);
+            }
+        }
+
+        // Función para cambiar la cámara
+        function changeCamera(view) {
+            switch (view) {
+                case 'frontal':
+                    camera.position.set(0, 10, 30);
+                    camera.lookAt(0, 0, 0);
+                    break;
+                case 'lateral':
+                    camera.position.set(20, 10, 0);
+                    camera.lookAt(0, 0, 0);
+                    break;
+                case 'superior':
+                    camera.position.set(0, 30, 0.1); // Pequeño offset para evitar división por cero
+                    camera.lookAt(0, 0, 0);
+                    break;
+                case 'isometrica':
+                    camera.position.set(20, 20, 20);
+                    camera.lookAt(0, 0, 0);
+                    break;
+            }
+        }
+
+        // Golpear la bola blanca al hacer clic
+        window.addEventListener('click', () => {
+            whiteBall.velocity.set(0, 0, -2); // -10, Golpe hacia adelante
+        });
+
+        // Animación y física
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Actualizar posición de las bolas
+            balls.forEach(ball => {
+                ball.position.add(ball.velocity);
+
+                // Aplicar fricción
+                ball.velocity.multiplyScalar(0.98);
+
+                // Detener si la velocidad es muy baja
+                if (ball.velocity.length() < 0.01) ball.velocity.set(0, 0, 0);
+
+                // Verificar colisión con bordes
+                checkBorderCollision(ball);
+            });
+
+            // Verificar colisiones entre bolas
+            for (let i = 0; i < balls.length; i++) {
+                for (let j = i + 1; j < balls.length; j++) {
+                    checkBallCollision(balls[i], balls[j]);
+                }
+            }
+
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // Ajustar tamaño al cambiar ventana
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
