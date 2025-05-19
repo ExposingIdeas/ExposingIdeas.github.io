@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Juego de Aplanadoras y Cubo</title>
+    <style>
+        body { margin: 0; overflow: hidden; }
+        canvas { display: block; }
+        #controls {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.5);
+            padding: 10px;
+            color: white;
+            font-family: Arial;
+        }
+        button { margin: 5px; }
+    </style>
+</head>
+<body>
+    <div id="controls">
+        <button id="pressButton">Activar Aplanadoras</button>
+        <button id="stopButton">Detener Aplanadoras</button>
+        <button id="hideButton">Ocultar/Mostrar Aplanadoras</button>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cannon.js/0.6.2/cannon.min.js"></script>
+    <script>
+        // --- Configuración inicial ---
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // --- Mundo físico (Cannon.js) ---
+        const world = new CANNON.World();
+        world.gravity.set(0, 0, 0); // Sin gravedad
+        world.broadphase = new CANNON.NaiveBroadphase();
+        world.solver.iterations = 10;
+
+        // --- Crear objetos ---
+        // 1. Cubo (se deformará)
+        const cubeGeo = new THREE.BoxGeometry(2, 2, 2);
+        const cubeMat = new THREE.MeshBasicMaterial({ color: 0xff0000, wireframe: true });
+        const cubeMesh = new THREE.Mesh(cubeGeo, cubeMat);
+        scene.add(cubeMesh);
+
+        const cubeShape = new CANNON.Box(new CANNON.Vec3(1, 1, 1));
+        const cubeBody = new CANNON.Body({ mass: 1, shape: cubeShape });
+        world.addBody(cubeBody);
+
+        // 2. Aplanadoras (placas verdes)
+        const pressGeo = new THREE.BoxGeometry(3, 3, 0.5);
+        const pressMat = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+
+        const pressLeftMesh = new THREE.Mesh(pressGeo, pressMat);
+        pressLeftMesh.position.set(-5, 0, 0);
+        scene.add(pressLeftMesh);
+
+        const pressRightMesh = new THREE.Mesh(pressGeo, pressMat);
+        pressRightMesh.position.set(5, 0, 0);
+        scene.add(pressRightMesh);
+
+        const pressShape = new CANNON.Box(new CANNON.Vec3(1.5, 1.5, 0.25));
+        
+        const pressLeftBody = new CANNON.Body({ mass: 0, shape: pressShape });
+        pressLeftBody.position.set(-5, 0, 0);
+        world.addBody(pressLeftBody);
+
+        const pressRightBody = new CANNON.Body({ mass: 0, shape: pressShape });
+        pressRightBody.position.set(5, 0, 0);
+        world.addBody(pressRightBody);
+
+        // --- Variables de control ---
+        let pressing = false;
+        let hidePress = false;
+
+        // --- Controles ---
+        document.getElementById("pressButton").addEventListener("click", () => {
+            pressing = true;
+        });
+
+        document.getElementById("stopButton").addEventListener("click", () => {
+            pressing = false;
+        });
+
+        document.getElementById("hideButton").addEventListener("click", () => {
+            hidePress = !hidePress;
+            pressLeftMesh.visible = !hidePress;
+            pressRightMesh.visible = !hidePress;
+        });
+
+        // --- Posicionar cámara ---
+        //camera.position.z = 10;
+        camera.position.set(5, 10, 10); // (derecha, arriba, atrás)
+        camera.lookAt(0, 0, 0); // Apunta al centro de la escena
+
+        // --- Animación ---
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Mover aplanadoras si están activas
+            if (pressing) {
+                pressLeftBody.position.x += 0.05;
+                pressRightBody.position.x -= 0.05;
+            }
+
+            // Sincronizar Three.js con Cannon.js
+            cubeMesh.position.copy(cubeBody.position);
+            cubeMesh.quaternion.copy(cubeBody.quaternion);
+
+            pressLeftMesh.position.copy(pressLeftBody.position);
+            pressLeftMesh.quaternion.copy(pressLeftBody.quaternion);
+
+            pressRightMesh.position.copy(pressRightBody.position);
+            pressRightMesh.quaternion.copy(pressRightBody.quaternion);
+
+            // Actualizar física
+            world.step(1/60);
+
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // --- Resize ---
+        window.addEventListener("resize", () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
