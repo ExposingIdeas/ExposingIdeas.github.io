@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cubo con Aristas Deformables</title>
+    <style>
+        body { margin: 0; overflow: hidden; }
+        #container { position: relative; }
+        #controls {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(255, 255, 255, 0.7);
+            padding: 10px;
+            border-radius: 5px;
+            font-family: Arial, sans-serif;
+        }
+        .control-group { margin-bottom: 10px; }
+        label { display: inline-block; width: 100px; }
+        button {
+            padding: 8px 15px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover { background: #45a049; }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div id="controls">
+            <div class="control-group">
+                <h3>Controles de Cámara</h3>
+                <label for="camX">Posición X:</label>
+                <input type="range" id="camX" min="-10" max="10" step="0.1" value="5"><br>
+                
+                <label for="camY">Posición Y:</label>
+                <input type="range" id="camY" min="-10" max="10" step="0.1" value="5"><br>
+                
+                <label for="camZ">Posición Z:</label>
+                <input type="range" id="camZ" min="-10" max="10" step="0.1" value="5"><br>
+            </div>
+            <button id="resetBtn">Reiniciar Animación</button>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
+    <script>
+        // Escena, cámara y renderizador
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xf0f0f0);
+        
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(5, 5, 5);
+        camera.lookAt(0, 0, 0);
+        
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        document.getElementById('container').appendChild(renderer.domElement);
+        
+        // Controles de órbita
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        
+        // Luz
+        const light = new THREE.DirectionalLight(0xffffff, 1);
+        light.position.set(-1, 1, 1);
+        scene.add(light);
+        
+        const ambientLight = new THREE.AmbientLight(0x404040);
+        scene.add(ambientLight);
+        
+        // Ejes de referencia
+        const axesHelper = new THREE.AxesHelper(5);
+        scene.add(axesHelper);
+        
+        // Crear el cubo que se deformará
+        const cubeSize = 2;
+        const cubeGeometry = new THREE.BoxGeometry(cubeSize, cubeSize, cubeSize, 10, 10, 10);
+        const cubeMaterial = new THREE.MeshPhongMaterial({ 
+            color: 0x00aaff, 
+            wireframe: false,
+            transparent: true,
+            opacity: 0.9,
+            side: THREE.DoubleSide
+        });
+        const cube = new THREE.Mesh(cubeGeometry, cubeMaterial);
+        scene.add(cube);
+        
+        // Crear las aristas del cubo
+        const edgesGeometry = new THREE.EdgesGeometry(cubeGeometry);
+        const edgesMaterial = new THREE.LineBasicMaterial({ color: 0x000000, linewidth: 2 });
+        const edges = new THREE.LineSegments(edgesGeometry, edgesMaterial);
+        cube.add(edges); // Añadir las aristas como hijo del cubo para que se deformen juntas
+        
+        // Crear la esfera
+        const sphereRadius = 0.5;
+        const sphereGeometry = new THREE.SphereGeometry(sphereRadius, 32, 32);
+        const sphereMaterial = new THREE.MeshPhongMaterial({ color: 0xff5555 });
+        const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
+        sphere.position.set(-5, 0, 0); //(-5, 1.5, 0.5)
+        scene.add(sphere);
+        
+        // Variables para la animación
+        let animationPhase = 0;
+        let collisionTime = 0;
+        let impactPoint = new THREE.Vector3();
+        const sphereSpeed = 0.1;
+        const maxDeformation = 0.8;//0.5
+        
+        // Almacenar las posiciones originales
+        const originalVertices = [];
+        for (let i = 0; i < cubeGeometry.attributes.position.count; i++) {
+            originalVertices.push(new THREE.Vector3().fromBufferAttribute(cubeGeometry.attributes.position, i));
+        }
+        
+        // Controles de la interfaz
+        const camXSlider = document.getElementById('camX');
+        const camYSlider = document.getElementById('camY');
+        const camZSlider = document.getElementById('camZ');
+        const resetBtn = document.getElementById('resetBtn');
+        
+        // Actualizar posición de la cámara
+        function updateCameraPosition() {
+            camera.position.x = parseFloat(camXSlider.value);
+            camera.position.y = parseFloat(camYSlider.value);
+            camera.position.z = parseFloat(camZSlider.value);
+            camera.lookAt(0, 0, 0);
+            controls.update();
+        }
+        
+        camXSlider.addEventListener('input', updateCameraPosition);
+        camYSlider.addEventListener('input', updateCameraPosition);
+        camZSlider.addEventListener('input', updateCameraPosition);
+        
+        // Reiniciar la animación
+        resetBtn.addEventListener('click', () => {
+            sphere.position.set(-5, 1.5, 0.5);
+            
+            // Resetear deformación del cubo
+            const positionAttribute = cubeGeometry.attributes.position;
+            for (let i = 0; i < originalVertices.length; i++) {
+                positionAttribute.setXYZ(i, originalVertices[i].x, originalVertices[i].y, originalVertices[i].z);
+            }
+            positionAttribute.needsUpdate = true;
+            cubeGeometry.computeVertexNormals();
+            
+            // Actualizar aristas
+            edges.geometry.dispose();
+            edges.geometry = new THREE.EdgesGeometry(cubeGeometry);
+            
+            animationPhase = 0;
+            collisionTime = 0;
+            
+            updateCameraPosition();
+        });
+        
+        // Función para deformar el cubo y sus aristas
+        function deformCubeAndEdges(impactPoint, force, time) {
+            const positionAttribute = cubeGeometry.attributes.position;
+            
+            // Deformar los vértices del cubo
+            for (let i = 0; i < originalVertices.length; i++) {
+                const vertex = new THREE.Vector3().fromBufferAttribute(positionAttribute, i);
+                const originalVertex = originalVertices[i];
+                
+                const distance = vertex.distanceTo(impactPoint);
+                
+                if (distance < cubeSize) {
+                    const deformationFactor = Math.max(0, (cubeSize - distance) / cubeSize);
+                    const timeFactor = Math.sin(Math.min(1, time) * Math.PI);
+                    
+                    const deformationDir = new THREE.Vector3().subVectors(vertex, impactPoint).normalize();
+                    const deformationAmount = deformationFactor * timeFactor * force * maxDeformation;
+                    
+                    vertex.x = originalVertex.x + deformationDir.x * deformationAmount;
+                    vertex.y = originalVertex.y + deformationDir.y * deformationAmount;
+                    vertex.z = originalVertex.z + deformationDir.z * deformationAmount;
+                    
+                    positionAttribute.setXYZ(i, vertex.x, vertex.y, vertex.z);
+                } else {
+                    positionAttribute.setXYZ(i, originalVertex.x, originalVertex.y, originalVertex.z);
+                }
+            }
+            
+            positionAttribute.needsUpdate = true;
+            cubeGeometry.computeVertexNormals();
+            
+            // Actualizar las aristas
+            edges.geometry.dispose();
+            edges.geometry = new THREE.EdgesGeometry(cubeGeometry);
+        }
+        
+        // Animación
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            controls.update();
+            
+            if (animationPhase === 0) {
+                sphere.position.x += sphereSpeed;
+                
+                const sphereBB = new THREE.Box3().setFromObject(sphere);
+                const cubeBB = new THREE.Box3().setFromObject(cube);
+                
+                if (sphereBB.intersectsBox(cubeBB)) {
+                    animationPhase = 1;
+                    collisionTime = 0;
+                    
+                    impactPoint = new THREE.Vector3(
+                        -cubeSize/2,
+                        Math.max(-cubeSize/2, Math.min(cubeSize/2, sphere.position.y)),
+                        Math.max(-cubeSize/2, Math.min(cubeSize/2, sphere.position.z))
+                    );
+                }
+            }
+            
+            if (animationPhase === 1) {
+                collisionTime += 0.05;
+                deformCubeAndEdges(impactPoint, 1.0, collisionTime);
+                
+                if (collisionTime >= 1.0) {
+                    animationPhase = 2;
+                }
+            }
+            
+            if (animationPhase === 2) {
+                sphere.position.x -= sphereSpeed * 0.5;
+                
+                if (sphere.position.x < -5) {
+                    sphere.position.x = -5;
+                    animationPhase = 0;
+                    
+                    const positionAttribute = cubeGeometry.attributes.position;
+                    for (let i = 0; i < originalVertices.length; i++) {
+                        positionAttribute.setXYZ(i, originalVertices[i].x, originalVertices[i].y, originalVertices[i].z);
+                    }
+                    positionAttribute.needsUpdate = true;
+                    cubeGeometry.computeVertexNormals();
+                    
+                    edges.geometry.dispose();
+                    edges.geometry = new THREE.EdgesGeometry(cubeGeometry);
+                }
+            }
+            
+            renderer.render(scene, camera);
+        }
+        
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+        
+        animate();
+    </script>
+</body>
+</html>
