@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mi Página Genérica</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        header {
+            background-color: #333;
+            color: #fff;
+            padding: 1em 0;
+            text-align: center;
+        }
+
+        nav ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+        }
+
+        nav ul li {
+            margin: 0 1em;
+        }
+
+        nav a {
+            color: #fff;
+            text-decoration: none;
+            padding: 0.5em 1em;
+            border-radius: 5px;
+            transition: background-color 0.3s ease;
+        }
+
+        nav a:hover {
+            background-color: #555;
+        }
+
+        .container {
+            max-width: 960px;
+            margin: 2em auto;
+            padding: 20px;
+            background-color: #fff;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+        }
+
+        h1, h2 {
+            color: #333;
+        }
+
+        .hero {
+            text-align: center;
+            padding: 3em 0;
+            background-color: #eee;
+            border-radius: 8px;
+            margin-bottom: 2em;
+        }
+
+        .hero h1 {
+            font-size: 2.5em;
+            margin-bottom: 0.5em;
+        }
+
+        .hero p {
+            font-size: 1.1em;
+            color: #666;
+        }
+
+        .section {
+            margin-bottom: 2em;
+            padding: 1em 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .section:last-child {
+            border-bottom: none;
+        }
+
+        footer {
+            text-align: center;
+            padding: 1em 0;
+            background-color: #333;
+            color: #fff;
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Mi Sitio Web</h1>
+        <nav>
+            <ul>
+                <li><a href="#">Inicio</a></li>
+                <li><a href="#">Acerca de</a></li>
+                <li><a href="#">Servicios</a></li>
+                <li><a href="#">Contacto</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <div class="container">
+        <section class="hero">
+            <h1>Bienvenido a Nuestro Sitio Web</h1>
+            <p>Un lugar donde encontrarás información útil y soluciones a tus necesidades.</p>
+            </section>
+
+        <section class="section">
+            <h2>Sección 1</h2>
+            <p>Aquí puedes añadir el contenido de tu primera sección. Describe de qué trata esta parte de tu sitio web. Puedes incluir texto, imágenes o cualquier otro elemento HTML que necesites.</p>
+        </section>
+
+        <section class="section">
+            <h2>Sección 2</h2>
+            <p>Este es el espacio para la segunda sección. Puedes hablar sobre tus productos, servicios, equipo o cualquier otra cosa relevante para tu sitio.</p>
+            <ul>
+                <li>Elemento de lista 1</li>
+                <li>Elemento de lista 2</li>
+                <li>Elemento de lista 3</li>
+            </ul>
+        </section>
+
+        <section class="section">
+            <h2>Contacto</h2>
+            <p>¿Tienes alguna pregunta? ¡No dudes en contactarnos!</p>
+            </section>
+    </div>
+
+    <footer>
+        <p>&copy; 2025 Mi Sitio Web. Todos los derechos reservados.</p>
+    </footer>
+</body>
+</html>
