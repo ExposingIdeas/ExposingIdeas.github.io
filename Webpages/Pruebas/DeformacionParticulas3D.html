@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Cubo Deformable con Aplanadoras</title>
+    <style>
+        body { margin: 0; overflow: hidden; }
+        canvas { display: block; }
+        #controls {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.5);
+            padding: 10px;
+            color: white;
+            font-family: Arial;
+        }
+        button { margin: 5px; }
+    </style>
+</head>
+<body>
+    <div id="controls">
+        <button id="pressButton">Activar Aplanadoras</button>
+        <button id="stopButton">Detener Aplanadoras</button>
+        <button id="hideButton">Ocultar Aplanadoras</button>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // --- Configuración inicial ---
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // --- Crear cubo deformable (partículas) ---
+        const cubeSize = 2;
+        const particleCount = 64; // Número de partículas (ajustable para rendimiento)
+        const particles = new THREE.BufferGeometry();
+        const positions = new Float32Array(particleCount * 3);
+        const colors = new Float32Array(particleCount * 3);
+
+        // Inicializar partículas en una grilla 3D
+        let i = 0;
+        for (let x = 0; x < 4; x++) {
+            for (let y = 0; y < 4; y++) {
+                for (let z = 0; z < 4; z++) {
+                    positions[i * 3] = (x / 3 - 0.5) * cubeSize;
+                    positions[i * 3 + 1] = (y / 3 - 0.5) * cubeSize;
+                    positions[i * 3 + 2] = (z / 3 - 0.5) * cubeSize;
+                    colors[i * 3] = 1.0; // Rojo
+                    colors[i * 3 + 1] = 0.0;
+                    colors[i * 3 + 2] = 0.0;
+                    i++;
+                }
+            }
+        }
+
+        particles.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        particles.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+        const particleMaterial = new THREE.PointsMaterial({
+            size: 0.2,
+            vertexColors: true,
+            transparent: true
+        });
+        const cubeParticles = new THREE.Points(particles, particleMaterial);
+        scene.add(cubeParticles);
+
+        // --- Aplanadoras (placas verdes) ---
+        const pressGeo = new THREE.BoxGeometry(3, 3, 0.5);
+        const pressMat = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+        const pressLeft = new THREE.Mesh(pressGeo, pressMat);
+        const pressRight = new THREE.Mesh(pressGeo, pressMat);
+        pressLeft.position.set(-5, 0, 0);
+        pressRight.position.set(5, 0, 0);
+        scene.add(pressLeft);
+        scene.add(pressRight);
+
+        // --- Variables de control ---
+        let pressing = false;
+        let hidePress = false;
+        const originalPositions = positions.slice(); // Copia de las posiciones iniciales
+
+        // --- Controles ---
+        document.getElementById("pressButton").addEventListener("click", () => {
+            pressing = true;
+        });
+
+        document.getElementById("stopButton").addEventListener("click", () => {
+            pressing = false;
+        });
+
+        document.getElementById("hideButton").addEventListener("click", () => {
+            hidePress = !hidePress;
+            pressLeft.visible = !hidePress;
+            pressRight.visible = !hidePress;
+        });
+
+        // --- Posicionar cámara (vista isométrica) ---
+        camera.position.set(5, 10, 10);
+        camera.lookAt(0, 0, 0);
+
+        // --- Animación ---
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Mover aplanadoras si están activas
+            if (pressing) {
+                pressLeft.position.x += 0.05;
+                pressRight.position.x -= 0.05;
+
+                // Deformar cubo cuando las aplanadoras están cerca
+                const positions = particles.attributes.position.array;
+                for (let i = 0; i < particleCount; i++) {
+                    const px = positions[i * 3];
+                    const py = positions[i * 3 + 1];
+                    const pz = positions[i * 3 + 2];
+
+                    // Distancia a las aplanadoras
+                    const distLeft = Math.abs(px - pressLeft.position.x);
+                    const distRight = Math.abs(px - pressRight.position.x);
+
+                    // Aplastar partículas cerca de las aplanadoras
+                    if (distLeft < 2.5 || distRight < 2.5) {
+                        positions[i * 3 + 1] *= 0.98; // Reducir altura (efecto de compresión)
+                        positions[i * 3 + 2] *= 0.98; // Reducir profundidad
+                    }
+                }
+                particles.attributes.position.needsUpdate = true;
+            }
+
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // --- Resize ---
+        window.addEventListener("resize", () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
