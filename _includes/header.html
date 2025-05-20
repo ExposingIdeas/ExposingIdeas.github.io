@@ -1,0 +1,21 @@
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container">
+        <a class="navbar-brand" href="/">{{ site.title | default: "Mi Sitio" }}</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav">
+                {% for page_file in site.static_files %}
+                    {% if page_file.path contains 'Webpages/' and page_file.extname == '.html' %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ page_file.path | relative_url }}">
+                                {{ page_file.basename | replace: '-', ' ' | capitalize }}
+                            </a>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</nav>
