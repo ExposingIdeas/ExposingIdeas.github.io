@@ -1,0 +1,31 @@
+---
+layout: default
+title: "Inicio"
+---
+<!-- Hero Section -->
+<section class="hero bg-primary text-white text-center py-5 mb-5">
+    <div class="container">
+        <h1 class="display-4">Bienvenido a {{ site.title }}</h1>
+        <p class="lead">Explora nuestras páginas disponibles</p>
+    </div>
+</section>
+
+<!-- Lista de páginas -->
+<div class="row">
+    {% for page_file in site.static_files %}
+        {% if page_file.path contains 'Webpages/' and page_file.extname == '.html' %}
+            <div class="col-md-4 mb-4">
+                <div class="card h-100 shadow">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">
+                            {{ page_file.basename | replace: '-', ' ' | capitalize }}
+                        </h5>
+                        <a href="{{ page_file.path | relative_url }}" class="btn btn-primary">
+                            Visitar Página
+                        </a>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+    {% endfor %}
+</div>
