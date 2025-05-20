@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reloj Astronómico</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: #0f0c29;
+            color: #fff;
+            text-align: center;
+            margin: 0;
+            overflow: hidden;
+        }
+        .clock-container {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+            margin-bottom: 2rem;
+        }
+        .time {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+        .date {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            opacity: 0.8;
+        }
+        .moon-phase, .zodiac {
+            font-size: 1.2rem;
+            margin-top: 1rem;
+        }
+        .analog-clock {
+            position: relative;
+            width: 300px;
+            height: 300px;
+        }
+        canvas {
+            display: block;
+            margin: 0 auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="clock-container">
+        <div class="time" id="time"></div>
+        <div class="date" id="date"></div>
+        <div class="moon-phase" id="moon-phase"></div>
+        <div class="zodiac" id="zodiac"></div>
+    </div>
+
+    <div class="analog-clock">
+        <canvas id="clockCanvas" width="300" height="300"></canvas>
+    </div>
+
+    <script>
+        // --- Configuración inicial ---
+        const zodiacSymbols = ['♈', '♉', '♊', '♋', '♌', '♍', '♎', '♏', '♐', '♑', '♒', '♓'];
+        const zodiacAngles = [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330]; // 12 signos, 30° cada uno
+
+        // --- Funciones del reloj digital ---
+        function updateDigitalClock() {
+            const now = new Date();
+            
+            // Hora y fecha
+            document.getElementById('time').textContent = now.toLocaleTimeString();
+            document.getElementById('date').textContent = now.toLocaleDateString('es-ES', { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+            });
+            
+            // Fase lunar
+            const moonPhase = getMoonPhase(now);
+            document.getElementById('moon-phase').textContent = `Fase lunar: ${moonPhase.name} ${moonPhase.emoji}`;
+            
+            // Signo zodiacal solar
+            const zodiacSign = getZodiacSign(now);
+            document.getElementById('zodiac').textContent = `Zodiaco: ${zodiacSign}`;
+        }
+
+        // --- Funciones astronómicas ---
+        function getMoonPhase(date) {
+            const lunarCycle = 29.53; // días en ciclo lunar
+            const knownNewMoon = new Date('2025-01-01T00:00:00Z'); // Fecha de luna nueva de referencia
+            const daysSinceNewMoon = (date - knownNewMoon) / (1000 * 60 * 60 * 24);
+            const currentPhase = (daysSinceNewMoon % lunarCycle) / lunarCycle;
+            
+            const phases = [
+                { name: 'Luna Nueva', emoji: '🌑', angle: 0 },
+                { name: 'Luna Creciente', emoji: '🌒', angle: 45 },
+                { name: 'Cuarto Creciente', emoji: '🌓', angle: 90 },
+                { name: 'Luna Gibosa', emoji: '🌔', angle: 135 },
+                { name: 'Luna Llena', emoji: '🌕', angle: 180 },
+                { name: 'Luna Menguante', emoji: '🌖', angle: 225 },
+                { name: 'Cuarto Menguante', emoji: '🌗', angle: 270 },
+                { name: 'Luna Balsámica', emoji: '🌘', angle: 315 }
+            ];
+            
+            const phaseIndex = Math.floor(currentPhase * phases.length) % phases.length;
+            return phases[phaseIndex];
+        }
+
+        function getZodiacSign(date) {
+            const day = date.getDate();
+            const month = date.getMonth() + 1;
+            const zodiacs = [
+                { name: '♈ Aries', start: [3, 21], end: [4, 19] },
+                { name: '♉ Tauro', start: [4, 20], end: [5, 20] },
+                { name: '♊ Géminis', start: [5, 21], end: [6, 20] },
+                { name: '♋ Cáncer', start: [6, 21], end: [7, 22] },
+                { name: '♌ Leo', start: [7, 23], end: [8, 22] },
+                { name: '♍ Virgo', start: [8, 23], end: [9, 22] },
+                { name: '♎ Libra', start: [9, 23], end: [10, 22] },
+                { name: '♏ Escorpio', start: [10, 23], end: [11, 21] },
+                { name: '♐ Sagitario', start: [11, 22], end: [12, 21] },
+                { name: '♑ Capricornio', start: [12, 22], end: [1, 19] },
+                { name: '♒ Acuario', start: [1, 20], end: [2, 18] },
+                { name: '♓ Piscis', start: [2, 19], end: [3, 20] }
+            ];
+            
+            return zodiacs.find(z => 
+                (month === z.start[0] && day >= z.start[1]) || 
+                (month === z.end[0] && day <= z.end[1])
+            ).name;
+        }
+
+        // --- Reloj Analógico (Canvas) ---
+        function drawAnalogClock() {
+            const canvas = document.getElementById('clockCanvas');
+            const ctx = canvas.getContext('2d');
+            const radius = canvas.width / 2;
+            const now = new Date();
+            
+            // Limpiar canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Dibujar círculo exterior
+            ctx.beginPath();
+            ctx.arc(radius, radius, radius - 10, 0, 2 * Math.PI);
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 8;
+            ctx.stroke();
+            
+            // Dibujar símbolos zodiacales
+            ctx.font = '16px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            zodiacAngles.forEach((angle, i) => {
+                const radian = (angle - 90) * Math.PI / 180;
+                const x = radius + (radius - 30) * Math.cos(radian);
+                const y = radius + (radius - 30) * Math.sin(radian);
+                ctx.fillText(zodiacSymbols[i], x, y);
+            });
+            
+            // Posición del Sol (ángulo basado en la hora)
+            const sunAngle = (now.getHours() % 12) * 30 + (now.getMinutes() / 2) - 90;
+            drawCelestialBody(ctx, radius, sunAngle, '#FFD700', '☀️', 20);
+            
+            // Posición de la Luna (ángulo basado en fase lunar)
+            const moonPhase = getMoonPhase(now);
+            const moonAngle = (now.getHours() % 12) * 30 + (now.getMinutes() / 2) + 180 - 90; // Opuesta al Sol + fase
+            drawCelestialBody(ctx, radius, moonAngle, '#DDD', moonPhase.emoji, 15);
+        }
+        
+        function drawCelestialBody(ctx, radius, angle, color, symbol, size) {
+            const radian = angle * Math.PI / 180;
+            const x = radius + (radius - 50) * Math.cos(radian);
+            const y = radius + (radius - 50) * Math.sin(radian);
+            
+            ctx.beginPath();
+            ctx.arc(x, y, size / 2, 0, 2 * Math.PI);
+            ctx.fillStyle = color;
+            ctx.fill();
+            
+            ctx.font = `${size}px Arial`;
+            ctx.fillStyle = '#000';
+            ctx.fillText(symbol, x, y + 3);
+        }
+
+        // --- Animación ---
+        function updateClock() {
+            updateDigitalClock();
+            drawAnalogClock();
+        }
+
+        setInterval(updateClock, 1000);
+        updateClock(); // Iniciar
+    </script>
+</body>
+</html>
