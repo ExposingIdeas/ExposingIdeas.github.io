@@ -1,0 +1,12 @@
+/* Estilos personalizados */
+.hero {
+    background: linear-gradient(135deg, #6e48aa 0%, #9d50bb 100%);
+}
+
+.card {
+    transition: transform 0.3s;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+}
